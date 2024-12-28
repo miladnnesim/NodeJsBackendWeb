@@ -3,6 +3,19 @@ const { body, validationResult } = require('express-validator');
 const db = require('../db');
 const router = express.Router();
 
+const VALID_RANKS = [
+    'Iron',
+    'Bronze',
+    'Silver',
+    'Gold',
+    'Platinum',
+    'Diamond',
+    'Ascendant',
+    'Immortal',
+    'Radiant',
+];
+
+// Alle scrims ophalen
 router.get('/', (req, res) => {
     const query = 'SELECT * FROM scrims';
     db.query(query, (err, results) => {
@@ -13,6 +26,7 @@ router.get('/', (req, res) => {
         res.json(results);
     });
 });
+
 // Scrims zoeken op een specifieke waarde
 router.get('/search', (req, res) => {
     const { type, date, language } = req.query;
@@ -35,24 +49,23 @@ router.get('/search', (req, res) => {
 
     db.query(query, params, (err, results) => {
         if (err) {
-            console.error('fout bij het zoeken naar scrims:', err);
+            console.error('Fout bij het zoeken naar scrims:', err);
             return res.status(500).send('Serverfout');
         }
         res.json(results);
     });
 });
 
-
 // Details van een specifieke scrim ophalen
 router.get('/:id', (req, res) => {
     const query = 'SELECT * FROM scrims WHERE id = ?';
     db.query(query, [req.params.id], (err, results) => {
         if (err) {
-            console.error('fout bij het ophalen van de scrim:', err);
+            console.error('Fout bij het ophalen van de scrim:', err);
             return res.status(500).send('Serverfout');
         }
         if (results.length === 0) {
-            return res.status(404).send('scrim niet gevonden');
+            return res.status(404).send('Scrim niet gevonden');
         }
         res.json(results[0]);
     });
@@ -62,14 +75,37 @@ router.get('/:id', (req, res) => {
 router.post(
     '/',
     [
-        body('type').notEmpty().withMessage('type is verplicht'),
-        body('date').isDate().withMessage('datum moet een geldige datum zijn'),
-        body('start_time').notEmpty().withMessage('starttijd is verplicht'),
-        body('end_time').notEmpty().withMessage('eindtijd is verplicht'),
-        body('players_needed').isInt({ min: 1 }).withMessage('aantal spelers moet een positief geheel getal zijn'),
-        body('language').notEmpty().withMessage('taal is verplicht'),
-        body('min_rank').notEmpty().withMessage('minimale rang is verplicht'),
-        body('max_rank').notEmpty().withMessage('maximale rang is verplicht'),
+        body('type').notEmpty().withMessage('Type is verplicht'),
+        body('date').isDate().withMessage('Datum moet een geldige datum zijn'),
+        body('start_time').notEmpty().withMessage('Starttijd is verplicht'),
+        body('end_time')
+            .notEmpty().withMessage('Eindtijd is verplicht')
+            .custom((value, { req }) => {
+                if (value <= req.body.start_time) {
+                    throw new Error('Eindtijd moet later zijn dan starttijd');
+                }
+                return true;
+            }),
+        body('players_needed').isInt({ min: 1 }).withMessage('Aantal spelers moet een positief geheel getal zijn'),
+        body('language')
+            .isIn(['EN', 'NL']).withMessage('Taal moet EN of NL zijn'),
+        body('min_rank')
+            .isIn(VALID_RANKS).withMessage('Minimale rang is ongeldig')
+            .custom((value, { req }) => {
+                if (VALID_RANKS.indexOf(value) > VALID_RANKS.indexOf(req.body.max_rank)) {
+                    throw new Error('Minimale rang kan niet hoger zijn dan maximale rang');
+                }
+                return true;
+            }),
+        body('max_rank')
+            .isIn(VALID_RANKS).withMessage('Maximale rang is ongeldig')
+            .custom((value, { req }) => {
+                if (VALID_RANKS.indexOf(value) < VALID_RANKS.indexOf(req.body.min_rank)) {
+                    throw new Error('Maximale rang kan niet lager zijn dan minimale rang');
+                }
+                return true;
+            }),
+        body('notes').optional().isLength({ max: 500 }).withMessage('Notities mogen niet meer dan 500 tekens bevatten'),
     ],
     (req, res) => {
         const errors = validationResult(req);
@@ -85,7 +121,7 @@ router.post(
                 console.error('Fout bij het toevoegen van de scrim:', err);
                 return res.status(500).send('Serverfout');
             }
-            res.status(201).send('scrim toegevoegd');
+            res.status(201).send('Scrim toegevoegd');
         });
     }
 );
@@ -94,9 +130,28 @@ router.post(
 router.put(
     '/:id',
     [
-        body('type').optional().notEmpty().withMessage('type mag niet leeg zijn'),
-        body('date').optional().isDate().withMessage('datum moet een geldige datum zijn'),
-        body('players_needed').optional().isInt({ min: 1 }).withMessage('aantal spelers moet een positief geheel getal zijn'),
+        body('type').optional().notEmpty().withMessage('Type mag niet leeg zijn'),
+        body('date').optional().isDate().withMessage('Datum moet een geldige datum zijn'),
+        body('players_needed').optional().isInt({ min: 1 }).withMessage('Aantal spelers moet een positief geheel getal zijn'),
+        body('language').optional().isIn(['EN', 'NL']).withMessage('Taal moet EN of NL zijn'),
+        body('min_rank')
+            .optional()
+            .isIn(VALID_RANKS).withMessage('Minimale rang is ongeldig')
+            .custom((value, { req }) => {
+                if (req.body.max_rank && VALID_RANKS.indexOf(value) > VALID_RANKS.indexOf(req.body.max_rank)) {
+                    throw new Error('Minimale rang kan niet hoger zijn dan maximale rang');
+                }
+                return true;
+            }),
+        body('max_rank')
+            .optional()
+            .isIn(VALID_RANKS).withMessage('Maximale rang is ongeldig')
+            .custom((value, { req }) => {
+                if (req.body.min_rank && VALID_RANKS.indexOf(value) < VALID_RANKS.indexOf(req.body.min_rank)) {
+                    throw new Error('Maximale rang kan niet lager zijn dan minimale rang');
+                }
+                return true;
+            }),
     ],
     (req, res) => {
         const errors = validationResult(req);
@@ -113,24 +168,12 @@ router.put(
 
         db.query(query, values, (err, results) => {
             if (err) {
-                console.error('fout bij het updaten van de scrim:', err);
+                console.error('Fout bij het updaten van de scrim:', err);
                 return res.status(500).send('Serverfout');
             }
-            res.send('scrim bijgewerkt');
+            res.send('Scrim bijgewerkt');
         });
     }
 );
-
-// Scrim verwijderen
-router.delete('/:id', (req, res) => {
-    const query = 'DELETE FROM scrims WHERE id = ?';
-    db.query(query, [req.params.id], (err, results) => {
-        if (err) {
-            console.error('Fout bij het verwijderen van de scrim:', err);
-            return res.status(500).send('Serverfout');
-        }
-        res.send('scrim verwijderd');
-    });
-});
 
 module.exports = router;
