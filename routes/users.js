@@ -45,6 +45,40 @@ router.get('/:id', (req, res) => {
     });
 });
 
+// Users zoeken op meerdere velden
+router.get('/search', (req, res) => {
+    const { name, username, role, email } = req.query;
+
+    let query = 'SELECT * FROM users WHERE 1=1';
+    const params = [];
+
+    if (name) {
+        query += ' AND name LIKE ?';
+        params.push(`%${name}%`);
+    }
+    if (username) {
+        query += ' AND username LIKE ?';
+        params.push(`%${username}%`);
+    }
+    if (role) {
+        query += ' AND role = ?';
+        params.push(role);
+    }
+    if (email) {
+        query += ' AND email LIKE ?';
+        params.push(`%${email}%`);
+    }
+
+    db.query(query, params, (err, results) => {
+        if (err) {
+            console.error('Fout bij het zoeken naar users:', err);
+            return res.status(500).send('Serverfout');
+        }
+        res.json(results);
+    });
+});
+
+
 // Nieuwe user toevoegen
 router.post(
     '/',
