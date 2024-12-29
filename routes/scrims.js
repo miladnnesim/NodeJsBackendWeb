@@ -75,7 +75,9 @@ router.get('/:id', (req, res) => {
 router.post(
     '/',
     [
-        body('type').notEmpty().withMessage('Type is verplicht'),
+        body('type')
+            .notEmpty().withMessage('Type is verplicht')
+            .isIn(['ranked', 'casual']).withMessage('Type moet ranked of casual zijn'),
         body('date').isDate().withMessage('Datum moet een geldige datum zijn'),
         body('start_time').notEmpty().withMessage('Starttijd is verplicht'),
         body('end_time')
@@ -130,7 +132,9 @@ router.post(
 router.put(
     '/:id',
     [
-        body('type').optional().notEmpty().withMessage('Type mag niet leeg zijn'),
+        body('type')
+            .optional()
+            .isIn(['ranked', 'casual']).withMessage('Type moet ranked of casual zijn'),
         body('date').optional().isDate().withMessage('Datum moet een geldige datum zijn'),
         body('players_needed').optional().isInt({ min: 1 }).withMessage('Aantal spelers moet een positief geheel getal zijn'),
         body('language').optional().isIn(['EN', 'NL']).withMessage('Taal moet EN of NL zijn'),
