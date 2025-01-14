@@ -89,3 +89,11 @@ http://localhost:3000
 | POST    | `/scrims`        | Voeg een nieuwe scrim toe.      |
 | PUT     | `/scrims/:id`    | Update een bestaande scrim.     |
 | DELETE  | `/scrims/:id`    | Verwijder een scrim.            |
+
+## Bronnen
+Ik heb gewerkt aan 1 grote chatgpt chat, maar omdat ik fotos heb geupload in dat chat, kan ik die niet delen.
+Ik heb dat chat gebruikt grotendeels voor debug en informatie opvulling.
+
+start node: https://chatgpt.com/share/677066f1-f168-800c-8539-d6d33dbd7795
+
+db connectionn : https://chatgpt.com/share/677173bc-5d24-800c-b838-dd86763ab66f
